@@ -26,24 +26,31 @@ import os
 import shutil
 
 inpdir = os.path.abspath("$input_dir")
-outdir = os.path.abspath("$output_dir")
-mxdepth = int("$max_depth") if "$max_depth" else None
-usednames = dict()
-lenofinpdir = len(inpdir.rstrip(os.sep).split(os.sep))
+outpdir = os.path.abspath("$output_dir")
+mxdepth= int("$max_depth") if "$max_depth" else None
 for root, dirs, files in os.walk(inpdir):
-    depth = len(root.rstrip(os.sep).split(os.sep)) - lenofinpdir + 1
-    if mxdepth is not None and depth > mxdepth:
+    repath = os.path.relpath(root, inpdir)
+    reparts = repath.split(os.sep) if repath != '.' else []
+    depth = len(reparts) + 1
+    if mxdepth is not None and depth > max_depth:
         dirs[:] = []
         continue
+    outdir = os.path.join(outpdir, *reparts) if repath != '.' else outpdir
+    os.makedirs(outdir, exist_ok=True)
+    usednames = set(os.listdir(outdir))
     for fname in files:
-        base, ext = os.path.splitext(fname)
-        name = fname
-        count = usednames.get(fname, 0)
-        while os.path.exists(os.path.join(outdir, name)) or name in usednames.values():
-            count += 1
-            name = f"{base}{count}{ext}"
-        usednames[fname] = count
         src = os.path.join(root, fname)
-        dst = os.path.join(outdir, name)
+        dst = os.path.join(outdir, fname)
+        if fname in usednames:
+            base, ext = os.path.splitext(fname)
+            i = 1
+            newname = f"{base}{i}{ext}"
+            while newname in usednames:
+                i += 1
+                newname = f"{base}{i}{ext}"
+            dst = os.path.join(outdir, newname)
+            usednames.add(newname)
+        else:
+            usednames.add(fname)
         shutil.copy2(src, dst)
 END
